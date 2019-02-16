@@ -28,7 +28,28 @@ Con ambas opciones obtenemos el mismo resultado. Yo he dejado en el código el u
 
 Por último llamamos al método coalesce para intentar reducir el número de particiones a 1 y guardamos el fichero.
 
-
 # Fase 2
 
+Para la realización de esta fase he creado la clase **RealEstatePrices** dentro del paquete irm.practica.fase1. Para esta fase hay que configurar dos rutas en el objeto Utils:
+
+- **pathFolderStreaming** que indica la ruta donde se dejaran los ficheros entrada para que se vayan leyendo en el proceso de streaming.
+- **pathRealEstateCSVFileOverLimit** indica la ruta de un fichero que se copiará durante la ejecución del proceso para elevar la media de los precios. Originalmente está en la misma carpeta que el dataset de la FASE 1.
+
+Para la funcionalidad del envío de correos hay que configurar estos parámetros, también del objeto Utils:
+- **myEmail** Correo desde el que se envía el correo.
+- **myEmailPass** Contraseña del correo
+- **emailDest** Dirección de destino del email.
+
+Este proceso recibe como parámetro de ejecución el límite que se comprobará que no deben pasar la media de precios de cada localidad. En el proyecto la he configurado a 7000, pero se puede cambiar en la configuración de lanzamiento del proceso. Si no se indica parámetro de ejecución por defecto se establece a 7000.
+
+Posteriormente eliminamos de la ruta del streaming el fichero con precios que superan el límite por si existiera.
+
+A continuación se prepara una tarea que se ejecutará 25 segundos después de iniciar la ejecución. Esta tarea copiará el fichero con precios que superan el límite en la ruta de streaming.
+
+Creamos el objeto SparkSession y configuramos los logs para que solo muestre trazas de error. Creamos un esquema para cargar los datos de los ficheros JSON e inicializamos el DataFrame de streaming que irá leyendo los fichero que se generen. A continuación iniciamos procedimiento query y mostrar el resultado por consola de modo 'complete'.
+
+A continuación creamos el dataframe en el que agrupamos los datos por localidad y precio medio en una ventana de una hora. Con este dataframe, filtramos las medias de precios que superen el precio límite configurado. Cada una de las filas del dataframe obtenido son las que han superado el límite. Si no hubiera ninguna fila significa que no se ha superado el límite en ningún caso. Por último iniciamos procedimiento queryLimit y realizamos un bucle por cada fila obtenida para mostrar que localidades han superado el limite y mandamos un correo de alerta al departamento correspondiente.
+
 # Fase 3
+
+Para la realización de esta fase 
