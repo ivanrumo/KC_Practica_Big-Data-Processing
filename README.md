@@ -30,7 +30,7 @@ Por último llamamos al método coalesce para intentar reducir el número de par
 
 # Fase 2
 
-Para la realización de esta fase he creado la clase **RealEstatePrices** dentro del paquete irm.practica.fase1. Para esta fase hay que configurar dos rutas en el objeto Utils:
+Para la realización de esta fase he creado la clase **ReaEstateStreaming** dentro del paquete irm.practica.fase2. Para esta fase hay que configurar dos rutas en el objeto Utils:
 
 - **pathFolderStreaming** que indica la ruta donde se dejaran los ficheros entrada para que se vayan leyendo en el proceso de streaming.
 - **pathRealEstateCSVFileOverLimit** indica la ruta de un fichero que se copiará durante la ejecución del proceso para elevar la media de los precios. Originalmente está en la misma carpeta que el dataset de la FASE 1.
@@ -46,10 +46,32 @@ Posteriormente eliminamos de la ruta del streaming el fichero con precios que su
 
 A continuación se prepara una tarea que se ejecutará 25 segundos después de iniciar la ejecución. Esta tarea copiará el fichero con precios que superan el límite en la ruta de streaming.
 
-Creamos el objeto SparkSession y configuramos los logs para que solo muestre trazas de error. Creamos un esquema para cargar los datos de los ficheros JSON e inicializamos el DataFrame de streaming que irá leyendo los fichero que se generen. A continuación iniciamos procedimiento query y mostrar el resultado por consola de modo 'complete'.
+Creamos el objeto SparkSession y configuramos los logs para que solo muestre trazas de error. Creamos un esquema para cargar los datos de los ficheros JSON e inicializamos el DataFrame de streaming que irá leyendo los fichero que se generen. 
 
-A continuación creamos el dataframe en el que agrupamos los datos por localidad y precio medio en una ventana de una hora. Con este dataframe, filtramos las medias de precios que superen el precio límite configurado. Cada una de las filas del dataframe obtenido son las que han superado el límite. Si no hubiera ninguna fila significa que no se ha superado el límite en ningún caso. Por último iniciamos procedimiento queryLimit y realizamos un bucle por cada fila obtenida para mostrar que localidades han superado el limite y mandamos un correo de alerta al departamento correspondiente.
+A continuación creamos el dataframe en el que agrupamos los datos por localidad y precio medio en una ventana de una hora. A continuación iniciamos procedimiento query y mostrar el resultado por consola de modo 'complete'.
+
+Con este dataframe, filtramos las medias de precios que superen el precio límite configurado. Cada una de las filas del dataframe obtenido son las que han superado el límite. Si no hubiera ninguna fila significa que no se ha superado el límite en ningún caso. Por último iniciamos procedimiento queryLimit y realizamos un bucle por cada fila obtenida para mostrar que localidades han superado el limite y mandamos un correo de alerta al departamento correspondiente.
 
 # Fase 3
 
-Para la realización de esta fase 
+Para la realización de esta fase he creado la clase **RealEstateML** dentro del paquete irm.practica.fase3. Para esta fase hay que configurar dos rutas en el objeto Utils:
+
+- **pathRealEstateML_LR** que indica la ruta donde se se guardaran los resultados de la predicción con el algoritmo de Linear Regression.
+- **pathRealEstateML_RF** que indica la ruta donde se se guardaran los resultados de la predicción con el algoritmo de Random Forest Regressor.
+
+Para la realización de de esta fase he utilizado dos algoritmos de machine learning de los múltiples que provee Spark: Linear Regression y Random Forest Regressor. Linear Regression lo he usado porque lo vimos en clase y Random Forest Regressor no lo he usado por ninguna razón especial. Ambos algoritmos, en la mayoría de casos, se desvían bastante en la predicción del precio real, aunque en algunos casos se acercan bastante. Si que he podido ver que Random Forest Regressor aproxima las predicciones mejor que Linear Regression, aunque, como he dicho, no son muy fiables. Entiendo que se necesitan muchas mas muestras para que los resultados sean más certeros.
+
+Para empezar creamos el objeto SparkSession y configuramos los logs para que solo muestre trazas de error.
+A continuación cargamos el fichero csv en un dataframe con el método spark.read.csv indicando como parámetros que el fichero usa el separador ",", que el fichero tiene cabecera y que infiera el esquema.
+
+Como nos pasa en la fase 1, la localidad tiene espacios en los nombres que nos sobran, por lo que tenemos que hacer un poco de limpieza. Una vez limpiado creamos los conjuntos de datos de entrenamiento (80%) y de pruebas (20%).
+
+Unos de los campos con los que vamos a entrenar nuestros modelos es la Localidad. Como es un dato de tipo texto, tenemos que transformarlo en un dato numérico. Para usamos un objeto StringIndexer que asociará cada nombre de localidad a un índice.
+
+Lo siguiente es crear un objeto VectorAssembler con las columnas que vamos a usar como features. Las columnas que vamos a indicar como features son la Localidad (en realidad usamos los datos generados con el StringIndexer), Size, Bedrooms y Bathrooms. En un principio probé con la localidad y el precio. Posteriormente probé a incluir las habitaciones y los baños y las predicciones se acercaban más a la realidad, por lo que parece que estas columan afectan al precio además del tamaño y la situación.
+
+Después se crea y se configura el objeto LinearRegression del modelo indicando la columna Label (el precio) y las columnas features.
+
+Para realizar el entrenamiento vamos a usar un Pipeline en el que definimos como fases el objeto StringIndexer, el VectorAssembler y el objeto LinearRegression. Con el Pipeline creado lo entrenamos con el conjunto de datos de entrenamiento. Luego probamos el modelo con el conjunto de datos de test y de los datos obtenidos obtenemos un dataframe con las columnas features, label y la predicción del modelo. El contenido del dataframe lo guardamos en la ruta configurada en el parámetro de configuración pathRealEstateML_LR.
+
+Ahora toca realizar el modelo y la predición con el algoritmo Random Forest Regressor. Los pasos son básicamente los mismos. El mayor cambio es que obtenemos un objeto RandomForestRegressor para entrenar el modelo en vez de un objeto LinearRegression. Por el resto es igual: obtenemos un Pipiline con las mismas fases, entrenamos el modelo con los datos de entrenamiento y lo probamos con los datos de test. Los resultados del entrenamiento los guardamos en la ruta configurada en el parámetro pathRealEstateML_RF.
